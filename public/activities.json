@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "title": "Coastal Harmony Youth Meet",
+    "date": "2025-08-01",
+    "description": "Mangaluru city hosted a regional youth meetup focusing on promoting peace and friendly cultural exchanges.",
+    "image": "/images/hero-banner-2.jpg"
+  },
+  {
+    "id": 2,
+    "title": "Monsoon Distress Support",
+    "date": "2025-07-15",
+    "description": "DYFI teams provided voluntary cleanup and flood rehabilitation services to affected coastal communities in Ullal.",
+    "image": "/images/hero-banner-1.jpg"
+  },
+  {
+    "id": 3,
+    "title": "Free Health Diagnostics",
+    "date": "2025-06-28",
+    "description": "District committee partnered with local medical colleges to organize free medical wellness camps in rural DK.",
+    "image": "/images/hero-banner-3.jpg"
+  },
+  {
+    "id": 4,
+    "title": "Youth Sports Festival",
+    "date": "2025-05-20",
+    "description": "District-level kabbadi and volleyball tournament held in Moodbidri to promote fitness and sportsmanship.",
+    "image": "/images/hero-banner-2.jpg"
+  },
+  {
+    "id": 5,
+    "title": "Anti-Substance Abuse Seminar",
+    "date": "2025-04-30",
+    "description": "Organised an educational seminar in Mangaluru for high school students regarding drug hazards.",
+    "image": "/images/hero-banner-3.jpg"
+  },
+  {
+    "id": 6,
+    "title": "District Core Committee Meeting",
+    "date": "2025-04-02",
+    "description": "Bantwal hosted the executive assembly to map local development goals and unit level targets.",
+    "image": "/images/hero-banner-1.jpg"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "title": "Regional Job Rights Initiative",
+    "date": "2025-08-15",
+    "status": "Published",
+    "description": "Demanding fair employment opportunities for local Dakshina Kannada youth in regional public sectors, Mangaluru Port, and industrial zones.",
+    "image": "/images/hero-banner-1.jpg"
+  },
+  {
+    "id": 2,
+    "title": "Harmony & Unity Campaign",
+    "date": "2025-07-20",
+    "status": "Published",
+    "description": "Promoting communal harmony, secularism, and friendly bonds among youth across coastal towns to counter divisive narratives.",
+    "image": "/images/hero-banner-3.jpg"
+  },
+  {
+    "id": 3,
+    "title": "Anti-Drug Campus Crusade",
+    "date": "2025-06-10",
+    "status": "Draft",
+    "description": "Launching awareness campaigns in district colleges and student hubs to combat substance abuse and foster healthy lifestyles.",
+    "image": "/images/hero-banner-2.jpg"
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "role": "District President",
+    "name": "Comrade Naveen",
+    "area": "DYFI Dakshina Kannada"
+  },
+  {
+    "id": 2,
+    "role": "District Secretary",
+    "name": "Comrade Santosh",
+    "area": "DYFI Dakshina Kannada"
+  },
+  {
+    "id": 3,
+    "role": "District Vice President",
+    "name": "Comrade Vinod",
+    "area": "DYFI Dakshina Kannada"
+  },
+  {
+    "id": 4,
+    "role": "District Treasurer",
+    "name": "Comrade Prasanna",
+    "area": "DYFI Dakshina Kannada"
+  },
+  {
+    "id": 5,
+    "role": "Joint Secretary (1)",
+    "name": "Comrade Ashrita",
+    "area": "DYFI Dakshina Kannada"
+  },
+  {
+    "id": 6,
+    "role": "Joint Secretary (2)",
+    "name": "Comrade Manoj",
+    "area": "DYFI Dakshina Kannada"
+  },
+  {
+    "id": 7,
+    "role": "Secretariat Member",
+    "name": "Comrade Harish",
+    "area": "Ullal Area Coordinator"
+  },
+  {
+    "id": 8,
+    "role": "Secretariat Member",
+    "name": "Comrade Shobha",
+    "area": "Bantwal Area Coordinator"
+  }
+]

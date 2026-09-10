@@ -1,0 +1,24 @@
+[
+  {
+    "id": "BD-1789015383737",
+    "name": "NARESH N",
+    "phone": "9535808478",
+    "group": "O+",
+    "area": "Mangaluru City",
+    "date": "2026-09-10"
+  },
+  {
+    "id": 1,
+    "name": "Arjun Rao",
+    "phone": "9876543210",
+    "group": "O+",
+    "area": "Ullal"
+  },
+  {
+    "id": 2,
+    "name": "Prerna Amin",
+    "phone": "9448123450",
+    "group": "B+",
+    "area": "Mangaluru City"
+  }
+]

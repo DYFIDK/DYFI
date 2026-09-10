@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "alt": "Rally Support",
+    "src": "/images/hero-banner-1.jpg"
+  },
+  {
+    "id": 2,
+    "alt": "Anti-Drug March",
+    "src": "/images/hero-banner-2.jpg"
+  },
+  {
+    "id": 3,
+    "alt": "Sports Meet",
+    "src": "/images/hero-banner-3.jpg"
+  },
+  {
+    "id": 4,
+    "alt": "Youth Convention",
+    "src": "/images/youtube-thumbnail.jpg"
+  },
+  {
+    "id": 5,
+    "alt": "Blood Camp",
+    "src": "/images/blood-donation-bg.jpg"
+  },
+  {
+    "id": 6,
+    "alt": "Ullal Cleanup",
+    "src": "/images/hero-banner-1.jpg"
+  },
+  {
+    "id": 7,
+    "alt": "Mangaluru Rally",
+    "src": "/images/hero-banner-2.jpg"
+  },
+  {
+    "id": 8,
+    "alt": "Village Aid",
+    "src": "/images/hero-banner-3.jpg"
+  },
+  {
+    "id": 9,
+    "alt": "District Assembly",
+    "src": "/images/youtube-thumbnail.jpg"
+  },
+  {
+    "id": 10,
+    "alt": "Health Drive",
+    "src": "/images/blood-donation-bg.jpg"
+  },
+  {
+    "id": 11,
+    "alt": "Taluk Meet",
+    "src": "/images/hero-banner-1.jpg"
+  },
+  {
+    "id": 12,
+    "alt": "Youth Cadre Assembly",
+    "src": "/images/hero-banner-2.jpg"
+  }
+]

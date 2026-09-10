@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "title": "DYFI Launches Youth Employment Survey",
+    "date": "2025-08-18",
+    "views": 245,
+    "content": "A regional survey to map employment needs and skill sets of coastal youth, covering Ullal, Mangaluru, Bantwal, and Belthangady.",
+    "image": "/images/hero-banner-1.jpg"
+  },
+  {
+    "id": 2,
+    "title": "Mangaluru Peace March Promotes Unity",
+    "date": "2025-08-10",
+    "views": 189,
+    "content": "Hundreds of youth joined the unity rally to build solidarity, peace, and mutual respect among different coastal communities.",
+    "image": "/images/hero-banner-2.jpg"
+  },
+  {
+    "id": 3,
+    "title": "District Volunteers Active in Coastal Cleanups",
+    "date": "2025-07-28",
+    "views": 132,
+    "content": "DYFI youth wings organized successful plastic cleanups and environmental awareness drives at popular coastal beaches in DK.",
+    "image": "/images/hero-banner-3.jpg"
+  },
+  {
+    "id": 4,
+    "title": "Bantwal Taluk Youth Sammelan Declares Action Plan",
+    "date": "2025-07-10",
+    "views": 98,
+    "content": "Over 500 delegates drafted community campaigns targeting education improvements, job security, and local civic issues.",
+    "image": "/images/hero-banner-2.jpg"
+  },
+  {
+    "id": 5,
+    "title": "Blood Donation Helpline Active in Coastal Hubs",
+    "date": "2025-06-18",
+    "views": 320,
+    "content": "DYFI volunteer desks processed over 250 blood requests during the hot summer months, saving vital emergency cases.",
+    "image": "/images/blood-donation-bg.jpg"
+  },
+  {
+    "id": 6,
+    "title": "Student Admission Helpdesks Set up in Mangaluru",
+    "date": "2025-05-28",
+    "views": 145,
+    "content": "Helpdesks set up in city libraries and colleges to guide students through online admission procedures and college choices.",
+    "image": "/images/youtube-thumbnail.jpg"
+  }
+]
