@@ -18,10 +18,21 @@ export default function Dashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [formImageFile, setFormImageFile] = useState(null); // base64 file data URI state
-  const [apiBase, setApiBase] = useState("http://localhost:3000"); // Dynamic fallback API base URL
+  const [apiBase, setApiBase] = useState(() => {
+    if (process.env.NEXT_PUBLIC_MAIN_SITE_URL) {
+      return process.env.NEXT_PUBLIC_MAIN_SITE_URL.replace(/\/$/, "");
+    }
+    if (typeof window !== "undefined") {
+      const port = window.location.port;
+      if (port === "3000") return "http://localhost:3001";
+      if (port === "3001") return "http://localhost:3000";
+    }
+    return "http://localhost:3001";
+  });
 
-  // Detect and resolve port conflicts automatically
+  // Detect and resolve port conflicts automatically in local dev
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_MAIN_SITE_URL) return;
     if (typeof window !== "undefined") {
       const port = window.location.port;
       if (port === "3000") {
@@ -171,6 +182,17 @@ export default function Dashboard() {
     setTheme(theme === "dark" ? "light" : "dark");
   };
 
+  // Resolve image URLs: relative paths like /images/... need to load from the main website,
+  // not the admin dashboard (which doesn't have those files in its public folder).
+  // Base64 data URIs and absolute Cloudinary URLs pass through unchanged.
+  const resolveImageUrl = (src) => {
+    if (!src) return "/images/hero-banner-1.jpg";
+    // Already an absolute URL (Cloudinary, etc.) or data URI — use as-is
+    if (src.startsWith("http") || src.startsWith("data:")) return src;
+    // Relative path — prefix with main website's base URL
+    return `${apiBase}${src}`;
+  };
+
   const handleSignOut = async () => {
     if (supabase) {
       await supabase.auth.signOut();
@@ -238,6 +260,11 @@ export default function Dashboard() {
         const uploadData = await uploadRes.json();
         if (uploadData.success) {
           imageUrl = uploadData.url;
+          if (uploadData.warning) {
+            console.warn("Upload warning:", uploadData.warning);
+          }
+        } else {
+          console.error("Upload failed:", uploadData.error);
         }
       } catch (err) {
         console.error("Cloudinary upload failed, using fallback:", err);
@@ -582,7 +609,7 @@ export default function Dashboard() {
                       <tr key={c.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
                         <td style={{ padding: "0.75rem" }}>
                           <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden" }}>
-                            <img src={c.image || "/images/hero-banner-1.jpg"} alt={c.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <img src={resolveImageUrl(c.image)} alt={c.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           </div>
                         </td>
                         <td style={{ padding: "0.75rem", fontWeight: "600" }}>{c.title}</td>
@@ -624,7 +651,7 @@ export default function Dashboard() {
                       <tr key={n.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
                         <td style={{ padding: "0.75rem" }}>
                           <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden" }}>
-                            <img src={n.image || "/images/hero-banner-1.jpg"} alt={n.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <img src={resolveImageUrl(n.image)} alt={n.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           </div>
                         </td>
                         <td style={{ padding: "0.75rem", fontWeight: "600" }}>{n.title}</td>
@@ -687,7 +714,7 @@ export default function Dashboard() {
                 {gallery.map((g) => (
                   <div key={g.id} style={{ background: colors.bgPage, border: `1px solid ${colors.borderMain}`, borderRadius: "8px", overflow: "hidden", position: "relative" }}>
                     <div style={{ width: "100%", height: "120px", overflow: "hidden" }}>
-                      <img src={g.src || "/images/hero-banner-1.jpg"} alt={g.alt} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={resolveImageUrl(g.src)} alt={g.alt} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
                     <div style={{ padding: "0.5rem", fontSize: "0.8rem", textAlign: "center", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100px" }}>{g.alt}</span>
@@ -722,7 +749,7 @@ export default function Dashboard() {
                       <tr key={a.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
                         <td style={{ padding: "0.75rem" }}>
                           <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden" }}>
-                            <img src={a.image || "/images/hero-banner-2.jpg"} alt={a.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <img src={resolveImageUrl(a.image)} alt={a.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           </div>
                         </td>
                         <td style={{ padding: "0.75rem", fontWeight: "600" }}>{a.title}</td>
