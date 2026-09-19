@@ -1,19 +1,19 @@
 "use client";
 import { useEffect } from "react";
-import Script from "next/script";
 
 export default function GoogleTranslateScript() {
   useEffect(() => {
-    // Ensure googleTranslateElementInit is globally defined
+    // Define the init callback before loading the script
     window.googleTranslateElementInit = () => {
       if (window.google && window.google.translate) {
         try {
           new window.google.translate.TranslateElement(
             {
               pageLanguage: "en",
-              includedLanguages: "en,kn",
+              includedLanguages: "kn",
+              layout:
+                window.google.translate.TranslateElement.InlineLayout.SIMPLE,
               autoDisplay: false,
-              layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
             },
             "google_translate_element"
           );
@@ -23,25 +23,26 @@ export default function GoogleTranslateScript() {
       }
     };
 
-    // If script is already in document, re-trigger
+    // If script already loaded, just init
     if (window.google && window.google.translate) {
       window.googleTranslateElementInit();
+    }
+
+    // Inject script only once
+    if (!document.getElementById("google-translate-script")) {
+      const script = document.createElement("script");
+      script.id = "google-translate-script";
+      script.src =
+        "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      script.async = true;
+      document.body.appendChild(script);
     }
   }, []);
 
   return (
     <>
-      {/* Hidden element where Google Translate initializes */}
-      <div
-        id="google_translate_element"
-        style={{ display: "none", position: "absolute", top: "-9999px", left: "-9999px" }}
-        aria-hidden="true"
-      />
-      <Script
-        id="google-translate-script"
-        src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-        strategy="afterInteractive"
-      />
+      {/* Hidden div where Google Translate widget mounts */}
+      <div id="google_translate_element" style={{ display: "none" }} />
     </>
   );
 }

@@ -2465,3 +2465,105 @@ body {
     padding: 0.3rem 0.75rem;
   }
 }
+
+/* ===========================
+   PAYMENT STEP ANIMATIONS
+   =========================== */
+
+/* QR scanner sweep line moving top → bottom */
+@keyframes scanSweep {
+  0%   { top: 0; }
+  100% { top: calc(100% - 3px); }
+}
+
+/* Pulse for countdown ring when low on time */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
+  50%       { transform: scale(1.07); box-shadow: 0 0 0 8px rgba(198, 40, 40, 0); }
+}
+
+/* Not-Allowed toast slide in from top */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ===== Google Translate Banner — Hide completely ===== */
+/* Hide the injected banner iframe */
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+#goog-gt-tt,
+.goog-tooltip,
+.goog-tooltip:hover,
+.goog-text-highlight {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Prevent body from being pushed down */
+body {
+  top: 0 !important;
+  position: static !important;
+}
+
+/* Hide Google's own widget element */
+#google_translate_element,
+#google_translate_element * {
+  display: none !important;
+}
+
+/* ===== Language Switcher Button ===== */
+.lang-switcher-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-base);
+  white-space: nowrap;
+}
+
+.lang-switcher-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.lang-switcher-btn.lang-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.lang-switcher-btn .dyfi-lang-icon {
+  font-size: 1rem;
+}
+
+.lang-label {
+  font-size: 0.8rem;
+}
+
+/* Mobile lang item */
+.mobile-lang-item {
+  display: none;
+}
+
+/* Desktop wrapper */
+.desktop-lang-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .mobile-lang-item {
+    display: list-item;
+  }
+  .desktop-lang-wrapper {
+    display: none;
+  }
+}

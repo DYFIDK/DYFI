@@ -4,6 +4,7 @@ import Footer from "../components/Footer";
 import PageLoader from "../components/PageLoader";
 import GoogleTranslateScript from "../components/GoogleTranslateScript";
 
+
 export const metadata = {
   title: "DYFI Dakshina Kannada — District Committee",
   description: "Democratic Youth Federation of India (DYFI) Dakshina Kannada District Committee. Organizing youth for progress, communal harmony, and social justice in the coastal region.",
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="google" content="notranslate" />
         <link rel="icon" type="image/png" href="/images/logo.png" />
       </head>
       <body suppressHydrationWarning>
@@ -25,6 +27,7 @@ export default function RootLayout({ children }) {
           <Footer />
         </PageLoader>
         <GoogleTranslateScript />
+
       </body>
     </html>
   );

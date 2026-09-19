@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
 
+
 export default function Navbar() {
   const [isActive, setIsActive] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -140,6 +141,7 @@ export default function Navbar() {
             <div className="desktop-lang-wrapper">
               <LanguageSwitcher />
             </div>
+
 
             {/* Hamburger */}
             <div

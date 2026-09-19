@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 
 export default function JoinPortal() {
@@ -18,7 +18,65 @@ export default function JoinPortal() {
   const [paymentStatus, setPaymentStatus] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
+  // Payment step phases: 'scanner' | 'payment' | 'expired'
+  const [payPhase, setPayPhase] = useState("scanner");
+  // Countdown seconds for current phase
+  const [countdown, setCountdown] = useState(120); // 2 min scanner
+  const [notAllowedToast, setNotAllowedToast] = useState(false);
+  const timerRef = useRef(null);
+
+  // Start the scanner 2-min countdown when entering step 2
+  useEffect(() => {
+    if (step === 2 && payPhase === "scanner") {
+      setCountdown(120);
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            // After 2 min scanner phase, move to payment phase (1 min)
+            setPayPhase("payment");
+            setCountdown(60);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [step, payPhase]);
+
+  // Start payment 1-min countdown when payPhase changes to 'payment'
+  useEffect(() => {
+    if (step === 2 && payPhase === "payment") {
+      clearInterval(timerRef.current);
+      setCountdown(60);
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            setPayPhase("expired");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [payPhase, step]);
+
+  const handleNotAllowedClick = () => {
+    setNotAllowedToast(true);
+    setTimeout(() => setNotAllowedToast(false), 2500);
+  };
+
+  const formatTime = (secs) => {
+    const m = String(Math.floor(secs / 60)).padStart(2, "0");
+    const s = String(secs % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
   const resetFlow = () => {
+    clearInterval(timerRef.current);
     setStep(1);
     setFormData({
       name: "",
@@ -32,6 +90,9 @@ export default function JoinPortal() {
     });
     setPaymentStatus("");
     setIsVerifying(false);
+    setPayPhase("scanner");
+    setCountdown(120);
+    setNotAllowedToast(false);
   };
 
   const handleStep1Submit = (e) => {
@@ -40,6 +101,8 @@ export default function JoinPortal() {
       alert("Please fill out all required fields.");
       return;
     }
+    setPayPhase("scanner");
+    setCountdown(120);
     setStep(2);
   };
 
@@ -253,46 +316,283 @@ export default function JoinPortal() {
           {step === 2 && (
             <div className="step-content active">
               <div className="payment-wrapper">
+
+                {/* ── Not-Allowed Toast ── */}
+                {notAllowedToast && (
+                  <div style={{
+                    position: "fixed",
+                    top: "5rem",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: "#c62828",
+                    color: "#fff",
+                    padding: "0.75rem 1.5rem",
+                    borderRadius: "2rem",
+                    fontWeight: 600,
+                    fontSize: "0.95rem",
+                    zIndex: 9999,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    animation: "fadeInDown 0.3s ease",
+                  }}>
+                    <i className="bi bi-slash-circle-fill"></i> Not Allowed — Payment window has closed
+                  </div>
+                )}
+
                 <div className="payment-details" style={{ padding: "1.5rem" }}>
                   <p style={{ fontWeight: 500, color: "#555" }}>Annual Membership Subscription Fee</p>
                   <div className="fee-amount" style={{ fontSize: "2.8rem" }}>₹2.00</div>
                 </div>
 
-                <div className="upi-scan-box" style={{ marginTop: "1rem" }}>
-                  {/* Mock QR code */}
-                  <div className="upi-qr-mock"></div>
-                  <p className="qr-tip" style={{ fontSize: "0.85rem", maxWidth: "320px", margin: "0.5rem auto 0" }}>
-                    Scan QR code using Google Pay, PhonePe, or BHIM UPI app to pay <span>₹2</span>
-                  </p>
-                </div>
+                {/* ── PHASE: SCANNER (first 2 minutes) ── */}
+                {payPhase === "scanner" && (
+                  <div style={{ textAlign: "center" }}>
+                    {/* Countdown ring */}
+                    <div style={{
+                      display: "inline-flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      marginBottom: "0.75rem",
+                    }}>
+                      <span style={{
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "#e65100",
+                      }}>QR Scanner Active</span>
+                      <div style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: "50%",
+                        background: countdown > 30 ? "#e8f5e9" : "#fff3e0",
+                        border: `3px solid ${countdown > 30 ? "#43a047" : "#ef6c00"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "1rem",
+                        fontWeight: 700,
+                        color: countdown > 30 ? "#2e7d32" : "#bf360c",
+                        transition: "all 0.5s",
+                      }}>
+                        {formatTime(countdown)}
+                      </div>
+                      <span style={{ fontSize: "0.72rem", color: "#888" }}>Scan within this time</span>
+                    </div>
 
-                <p
-                  className="payment-status"
-                  style={{
-                    marginTop: "1.5rem",
-                    color: paymentStatus.includes("confirmed") ? "#2e7d32" : "#dfa23b",
-                  }}
-                >
-                  {paymentStatus}
-                </p>
+                    {/* QR Scanner viewfinder */}
+                    <div style={{
+                      position: "relative",
+                      width: 240,
+                      height: 240,
+                      margin: "0 auto 0.75rem",
+                      borderRadius: "1rem",
+                      overflow: "hidden",
+                      background: "#111",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+                    }}>
+                      {/* Actual QR image */}
+                      <img
+                        src="/images/payment-qr.png"
+                        alt="UPI Payment QR Code"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={(e) => { e.target.style.display = "none"; }}
+                      />
+                      {/* Scanner sweep line animation */}
+                      <div style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: "3px",
+                        background: "linear-gradient(90deg, transparent, #00e676, transparent)",
+                        animation: "scanSweep 2s linear infinite",
+                        boxShadow: "0 0 8px #00e676",
+                      }} />
+                      {/* Corner brackets */}
+                      {["tl", "tr", "bl", "br"].map((c) => (
+                        <div key={c} style={{
+                          position: "absolute",
+                          width: 24,
+                          height: 24,
+                          borderColor: "#00e676",
+                          borderStyle: "solid",
+                          borderWidth: c.includes("t") ? "3px 0 0" : "0 0 3px",
+                          borderLeftWidth: c.includes("l") ? "3px" : "0",
+                          borderRightWidth: c.includes("r") ? "3px" : "0",
+                          top: c.includes("t") ? 8 : "auto",
+                          bottom: c.includes("b") ? 8 : "auto",
+                          left: c.includes("l") ? 8 : "auto",
+                          right: c.includes("r") ? 8 : "auto",
+                        }} />
+                      ))}
+                    </div>
 
-                <div className="form-actions" style={{ justifyContent: "center", marginTop: "2.5rem" }}>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={isVerifying}
-                    onClick={handlePaymentSimulation}
-                    style={{ fontSize: "1.05rem", padding: "0.9rem 2.5rem" }}
-                  >
-                    {isVerifying ? (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", justifyContent: "center" }}>
-                        <span className="mini-arc-spinner"></span> Confirming...
-                      </span>
-                    ) : (
-                      "I have paid the ₹2"
+                    <p className="qr-tip" style={{ fontSize: "0.83rem", maxWidth: "300px", margin: "0 auto 0.25rem" }}>
+                      Scan using <strong>Google Pay / PhonePe / BHIM UPI</strong> to pay <span>₹2</span>
+                    </p>
+                    <p style={{ fontSize: "0.76rem", color: "#aaa" }}>UPI ID: <strong>dyfidk16357@fbl</strong></p>
+
+                    {/* Skip scanner button — jump to payment phase early */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearInterval(timerRef.current);
+                        setPayPhase("payment");
+                        setCountdown(60);
+                      }}
+                      style={{
+                        marginTop: "1rem",
+                        background: "none",
+                        border: "1.5px solid #1565c0",
+                        color: "#1565c0",
+                        borderRadius: "2rem",
+                        padding: "0.45rem 1.2rem",
+                        fontSize: "0.82rem",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                      }}
+                    >
+                      I've scanned — Go to payment confirmation →
+                    </button>
+                  </div>
+                )}
+
+                {/* ── PHASE: PAYMENT BUTTON (1 minute) ── */}
+                {(payPhase === "payment" || payPhase === "expired") && (
+                  <div style={{ textAlign: "center" }}>
+                    {/* Timer ring */}
+                    {payPhase === "payment" && (
+                      <div style={{
+                        display: "inline-flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        marginBottom: "1.25rem",
+                      }}>
+                        <span style={{
+                          fontSize: "0.78rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          color: countdown > 20 ? "#2e7d32" : "#c62828",
+                        }}>Confirm payment within</span>
+                        <div style={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: "50%",
+                          background: countdown > 20 ? "#e8f5e9" : "#ffebee",
+                          border: `4px solid ${countdown > 20 ? "#43a047" : "#e53935"}`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1.15rem",
+                          fontWeight: 800,
+                          color: countdown > 20 ? "#2e7d32" : "#b71c1c",
+                          transition: "all 0.5s",
+                          animation: countdown <= 10 ? "pulse 1s ease infinite" : "none",
+                        }}>
+                          {formatTime(countdown)}
+                        </div>
+                      </div>
                     )}
-                  </button>
-                </div>
+
+                    {payPhase === "expired" && (
+                      <div style={{
+                        background: "#ffebee",
+                        border: "1.5px solid #ef9a9a",
+                        borderRadius: "0.75rem",
+                        padding: "0.75rem 1.25rem",
+                        marginBottom: "1.25rem",
+                        fontSize: "0.88rem",
+                        color: "#b71c1c",
+                        fontWeight: 600,
+                        display: "inline-block",
+                      }}>
+                        <i className="bi bi-clock-history"></i> Payment window expired. Please restart.
+                      </div>
+                    )}
+
+                    <p
+                      className="payment-status"
+                      style={{
+                        marginBottom: "1rem",
+                        color: paymentStatus.includes("confirmed") ? "#2e7d32" : "#dfa23b",
+                      }}
+                    >
+                      {paymentStatus}
+                    </p>
+
+                    <div className="form-actions" style={{ justifyContent: "center" }}>
+                      {payPhase === "payment" ? (
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          disabled={isVerifying}
+                          onClick={handlePaymentSimulation}
+                          style={{ fontSize: "1.05rem", padding: "0.9rem 2.5rem" }}
+                        >
+                          {isVerifying ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", justifyContent: "center" }}>
+                              <span className="mini-arc-spinner"></span> Confirming...
+                            </span>
+                          ) : (
+                            "✅ I have paid the ₹2"
+                          )}
+                        </button>
+                      ) : (
+                        // Expired — show disabled button that triggers Not Allowed
+                        <button
+                          type="button"
+                          disabled
+                          onClick={handleNotAllowedClick}
+                          style={{
+                            fontSize: "1.05rem",
+                            padding: "0.9rem 2.5rem",
+                            background: "#bdbdbd",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "var(--radius-full, 2rem)",
+                            cursor: "not-allowed",
+                            opacity: 0.65,
+                            pointerEvents: "auto",
+                          }}
+                          onMouseDown={handleNotAllowedClick}
+                        >
+                          🚫 Payment Window Closed
+                        </button>
+                      )}
+                    </div>
+
+                    {payPhase === "expired" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearInterval(timerRef.current);
+                          setPayPhase("scanner");
+                          setCountdown(120);
+                          setPaymentStatus("");
+                        }}
+                        style={{
+                          marginTop: "1rem",
+                          background: "none",
+                          border: "1.5px solid #1565c0",
+                          color: "#1565c0",
+                          borderRadius: "2rem",
+                          padding: "0.45rem 1.4rem",
+                          fontSize: "0.82rem",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ↺ Retry — Scan QR Again
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
