@@ -26,10 +26,19 @@ export default function Committee() {
             {members.map((member) => (
               <div key={member.id} className="committee-card" style={{ background: "white" }}>
                 <div className="committee-card-img">
-                  <div className="placeholder-avatar"><i className="bi bi-person-fill"></i></div>
+                  {member.image || member.photo ? (
+                    <img 
+                      src={member.image || member.photo} 
+                      alt={member.name} 
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                    />
+                  ) : (
+                    <div className="placeholder-avatar"><i className="bi bi-person-fill"></i></div>
+                  )}
                 </div>
                 <h3>{member.role}</h3>
                 <p>{member.name}</p>
+                {member.area && <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginTop: "0.25rem", display: "block" }}>{member.area}</span>}
               </div>
             ))}
           </div>

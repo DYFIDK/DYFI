@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export default function Navbar() {
   const [isActive, setIsActive] = useState(false);
@@ -125,12 +126,20 @@ export default function Navbar() {
                   Blood Donation
                 </Link>
               </li>
+              <li className="mobile-lang-item">
+                <LanguageSwitcher />
+              </li>
               <li>
                 <Link href="/join" className="btn-join-nav" onClick={closeMenu}>
                   Join DYFI
                 </Link>
               </li>
             </ul>
+
+            {/* Desktop Language Switcher */}
+            <div className="desktop-lang-wrapper">
+              <LanguageSwitcher />
+            </div>
 
             {/* Hamburger */}
             <div

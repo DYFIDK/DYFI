@@ -178,17 +178,19 @@ export async function POST(request, { params }) {
 
 // Delete a Cloudinary image by its URL
 const deleteCloudinaryImage = async (imageUrl) => {
-  if (!imageUrl || !process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) return;
+  const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || "").toLowerCase().trim();
+  const apiKey = (process.env.CLOUDINARY_API_KEY || "").trim();
+  const apiSecret = (process.env.CLOUDINARY_API_SECRET || "").trim();
+  if (!imageUrl || !cloudName || !apiKey || !apiSecret) return;
 
   // Only process Cloudinary URLs
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   if (!imageUrl.includes(`res.cloudinary.com/${cloudName}`)) return;
 
   try {
     cloudinary.config({
       cloud_name: cloudName,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+      api_key: apiKey,
+      api_secret: apiSecret,
     });
 
     // Extract public_id from URL: https://res.cloudinary.com/CLOUD/image/upload/v123/folder/filename.ext

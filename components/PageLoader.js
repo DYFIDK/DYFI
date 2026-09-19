@@ -5,26 +5,20 @@ export default function PageLoader({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Hide the loader once the page is fully mounted and ready
-    const handleLoad = () => {
-      setLoading(false);
-    };
-
+    let timeoutId;
     if (document.readyState === "complete") {
-      setLoading(false);
+      timeoutId = setTimeout(() => setLoading(false), 0);
     } else {
+      const handleLoad = () => setLoading(false);
       window.addEventListener("load", handleLoad);
-      
-      // Safety fallback timeout to prevent stuck loading screen
-      const timeout = setTimeout(() => {
-        setLoading(false);
-      }, 500);
+      timeoutId = setTimeout(() => setLoading(false), 500);
 
       return () => {
         window.removeEventListener("load", handleLoad);
-        clearTimeout(timeout);
+        clearTimeout(timeoutId);
       };
     }
+    return () => clearTimeout(timeoutId);
   }, []);
 
   if (loading) {

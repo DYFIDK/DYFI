@@ -21,31 +21,39 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: "Missing file payload" }, { status: 400, headers });
     }
 
-    // Fallback: If Cloudinary keys are missing, return the data URI directly
-    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-      console.log("Cloudinary credentials missing, returning base64 data URL");
-      return NextResponse.json({ success: true, url: fileData }, { headers });
+    // Check if Cloudinary credentials are present
+    const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || "").toLowerCase().trim();
+    const apiKey = (process.env.CLOUDINARY_API_KEY || "").trim();
+    const apiSecret = (process.env.CLOUDINARY_API_SECRET || "").trim();
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      console.warn("Cloudinary credentials missing — storing base64 data URL as fallback");
+      return NextResponse.json({ success: true, url: fileData, warning: "Cloudinary not configured, using base64" }, { headers });
     }
 
     // Configure Cloudinary
     cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
     });
+
+    console.log(`Uploading to Cloudinary (cloud: ${cloudName})...`);
 
     // Upload to Cloudinary
     const uploadResponse = await cloudinary.uploader.upload(fileData, {
       folder: "dyfi-dakshina-kannada",
+      resource_type: "image",
     });
 
+    console.log(`Cloudinary upload success: ${uploadResponse.secure_url}`);
     return NextResponse.json({ success: true, url: uploadResponse.secure_url }, { headers });
   } catch (error) {
-    console.error("Cloudinary upload error, falling back to base64:", error.message);
-    // Graceful fallback: return the original base64 data URI so the image is not lost
-    if (fileData) {
-      return NextResponse.json({ success: true, url: fileData }, { headers });
-    }
-    return NextResponse.json({ success: false, error: error.message }, { status: 500, headers });
+    console.error("Cloudinary upload FAILED:", error.message || error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || "Failed to upload to Cloudinary",
+      fallbackUrl: fileData
+    }, { status: 500, headers });
   }
 }

@@ -1,15 +1,17 @@
 [
   {
-    "id": 1,
+    "id": "1789668757256",
     "role": "District President",
-    "name": "Comrade Naveen",
-    "area": "DYFI Dakshina Kannada"
+    "name": "ಬಿ.ಕೆ ಇಮ್ತಿಯಾಝ್",
+    "area": "Dakshina Kannada  District",
+    "image": "https://res.cloudinary.com/dyfidk/image/upload/v1789670886/dyfi-dakshina-kannada/kmv6h5k4acvn57eg3tm7.jpg"
   },
   {
-    "id": 2,
+    "id": "1789668972440",
     "role": "District Secretary",
-    "name": "Comrade Santosh",
-    "area": "DYFI Dakshina Kannada"
+    "name": " ಸಂತೋಷ್ ಬಜಾಲ್",
+    "area": "Dakshina Kannada District",
+    "image": "https://res.cloudinary.com/dyfidk/image/upload/v1789670560/dyfi-dakshina-kannada/fubunzrgpyijc8s0esne.jpg"
   },
   {
     "id": 3,

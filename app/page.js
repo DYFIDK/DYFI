@@ -266,7 +266,15 @@ export default function Home() {
             {committee.slice(0, 4).map((m) => (
               <div key={m.id} className="committee-card">
                 <div className="committee-card-img">
-                  <div className="placeholder-avatar"><i className="bi bi-person-fill"></i></div>
+                  {m.image || m.photo ? (
+                    <img 
+                      src={m.image || m.photo} 
+                      alt={m.name} 
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                    />
+                  ) : (
+                    <div className="placeholder-avatar"><i className="bi bi-person-fill"></i></div>
+                  )}
                 </div>
                 <h3>{m.role}</h3>
                 <p>{m.name}</p>

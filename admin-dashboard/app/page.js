@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [formImageFile, setFormImageFile] = useState(null); // base64 file data URI state
+  const [editingItem, setEditingItem] = useState(null); // item object when editing, null when adding
   const [apiBase, setApiBase] = useState(() => {
     if (process.env.NEXT_PUBLIC_MAIN_SITE_URL) {
       return process.env.NEXT_PUBLIC_MAIN_SITE_URL.replace(/\/$/, "");
@@ -205,6 +206,7 @@ export default function Dashboard() {
   // Open Add Modal
   const openAddModal = (type) => {
     setModalType(type);
+    setEditingItem(null);
     setIsModalOpen(true);
     setIsSaving(false);
     // Reset form states
@@ -214,7 +216,7 @@ export default function Dashboard() {
     setFormViews(Math.floor(Math.random() * 100).toString());
     setFormRole("");
     setFormName("");
-    setFormArea("Mangaluru City");
+    setFormArea(type === "committee" ? "Dakshina Kannada District" : "Mangaluru City");
     setFormAlt("");
     setFormPhone("");
     setFormGroup("O+");
@@ -224,6 +226,43 @@ export default function Dashboard() {
     setFormDesc("");
     setFormImageName("No file chosen");
     setFormImageFile(null); // Reset image payload state
+  };
+
+  // Open Edit Modal for an existing record
+  const openEditModal = (type, item) => {
+    setModalType(type);
+    setEditingItem(item);
+    setIsModalOpen(true);
+    setIsSaving(false);
+
+    // Pre-populate fields based on entity
+    if (type === "committee") {
+      setFormName(item.name || "");
+      setFormRole(item.role || "");
+      setFormArea(item.area || "Dakshina Kannada District");
+      setFormImageName(item.image || item.photo ? "Current photo attached" : "No file chosen");
+      setFormImageFile(null);
+    } else if (type === "campaigns") {
+      setFormTitle(item.title || "");
+      setFormDate(item.date || "");
+      setFormStatus(item.status || "Published");
+      setFormDesc(item.description || "");
+      setFormImageName(item.image ? "Current image attached" : "No file chosen");
+      setFormImageFile(null);
+    } else if (type === "news") {
+      setFormTitle(item.title || "");
+      setFormDate(item.date || "");
+      setFormViews(String(item.views || 0));
+      setFormContent(item.content || "");
+      setFormImageName(item.image ? "Current image attached" : "No file chosen");
+      setFormImageFile(null);
+    } else if (type === "activities") {
+      setFormTitle(item.title || "");
+      setFormDate(item.date || "");
+      setFormDesc(item.description || "");
+      setFormImageName(item.image ? "Current image attached" : "No file chosen");
+      setFormImageFile(null);
+    }
   };
 
   // Mock Photo Picker file selection trigger
@@ -246,8 +285,9 @@ export default function Dashboard() {
     e.preventDefault();
     setIsSaving(true);
 
-    const newId = String(Date.now());
-    let imageUrl = "/images/hero-banner-1.jpg"; // Default fallback
+    const isEdit = !!editingItem;
+    const currentId = isEdit ? editingItem.id : String(Date.now());
+    let imageUrl = isEdit ? (editingItem.image || editingItem.photo || editingItem.src || "") : "/images/hero-banner-1.jpg";
 
     // Upload image to Cloudinary via backend if selected
     if (formImageFile) {
@@ -258,11 +298,8 @@ export default function Dashboard() {
           body: JSON.stringify({ file: formImageFile })
         });
         const uploadData = await uploadRes.json();
-        if (uploadData.success) {
+        if (uploadData.success && uploadData.url) {
           imageUrl = uploadData.url;
-          if (uploadData.warning) {
-            console.warn("Upload warning:", uploadData.warning);
-          }
         } else {
           console.error("Upload failed:", uploadData.error);
         }
@@ -274,21 +311,21 @@ export default function Dashboard() {
     let requestBody = {};
 
     if (modalType === "campaigns") {
-      requestBody = { id: newId, title: formTitle, date: formDate, status: formStatus, description: formDesc, image: imageUrl };
+      requestBody = { id: currentId, title: formTitle, date: formDate, status: formStatus, description: formDesc, image: imageUrl };
     } else if (modalType === "news") {
-      requestBody = { id: newId, title: formTitle, date: formDate, views: parseInt(formViews) || 0, content: formContent, image: imageUrl };
+      requestBody = { id: currentId, title: formTitle, date: formDate, views: parseInt(formViews) || 0, content: formContent, image: imageUrl };
     } else if (modalType === "committee") {
-      requestBody = { id: newId, role: formRole, name: formName, area: formArea };
+      requestBody = { id: currentId, role: formRole, name: formName, area: formArea, image: imageUrl || (isEdit ? (editingItem.image || editingItem.photo || "") : "") };
     } else if (modalType === "gallery") {
-      requestBody = { id: newId, alt: formAlt, src: imageUrl };
+      requestBody = { id: currentId, alt: formAlt, src: imageUrl };
     } else if (modalType === "activities") {
-      requestBody = { id: newId, title: formTitle, date: formDate, description: formDesc, image: imageUrl };
+      requestBody = { id: currentId, title: formTitle, date: formDate, description: formDesc, image: imageUrl };
     } else if (modalType === "announcements") {
-      requestBody = { id: newId, type: formType, title: formTitle, content: formContent, target: formTarget, date: formDate };
+      requestBody = { id: currentId, type: formType, title: formTitle, content: formContent, target: formTarget, date: formDate };
     } else if (modalType === "donors") {
-      requestBody = { id: newId, name: formName, phone: formPhone, group: formGroup, area: formArea };
+      requestBody = { id: currentId, name: formName, phone: formPhone, group: formGroup, area: formArea };
     } else if (modalType === "members") {
-      const generatedId = "DK-2025-" + Math.floor(100000 + Math.random() * 900000);
+      const generatedId = isEdit ? currentId : ("DK-2025-" + Math.floor(100000 + Math.random() * 900000));
       requestBody = { id: generatedId, name: formName, phone: formPhone, area: formArea, type: formType, date: formDate };
     }
 
@@ -302,31 +339,54 @@ export default function Dashboard() {
         body: JSON.stringify(requestBody)
       });
       const resData = await res.json();
-      const itemToAdd = resData.success ? resData.data : requestBody;
+      const itemToSave = resData.success ? resData.data : requestBody;
       
-      if (modalType === "campaigns") setCampaigns([itemToAdd, ...campaigns]);
-      else if (modalType === "news") setNews([itemToAdd, ...news]);
-      else if (modalType === "committee") setCommittee([itemToAdd, ...committee]);
-      else if (modalType === "gallery") setGallery([itemToAdd, ...gallery]);
-      else if (modalType === "activities") setActivities([itemToAdd, ...activities]);
-      else if (modalType === "announcements") setAnnouncements([itemToAdd, ...announcements]);
-      else if (modalType === "donors") setDonors([itemToAdd, ...donors]);
-      else if (modalType === "members") setMembers([itemToAdd, ...members]);
+      if (isEdit) {
+        if (modalType === "campaigns") setCampaigns(campaigns.map(c => String(c.id) === String(currentId) ? itemToSave : c));
+        else if (modalType === "news") setNews(news.map(n => String(n.id) === String(currentId) ? itemToSave : n));
+        else if (modalType === "committee") setCommittee(committee.map(m => String(m.id) === String(currentId) ? itemToSave : m));
+        else if (modalType === "gallery") setGallery(gallery.map(g => String(g.id) === String(currentId) ? itemToSave : g));
+        else if (modalType === "activities") setActivities(activities.map(a => String(a.id) === String(currentId) ? itemToSave : a));
+        else if (modalType === "announcements") setAnnouncements(announcements.map(an => String(an.id) === String(currentId) ? itemToSave : an));
+        else if (modalType === "donors") setDonors(donors.map(d => String(d.id) === String(currentId) ? itemToSave : d));
+        else if (modalType === "members") setMembers(members.map(m => String(m.id) === String(currentId) ? itemToSave : m));
+      } else {
+        if (modalType === "campaigns") setCampaigns([itemToSave, ...campaigns]);
+        else if (modalType === "news") setNews([itemToSave, ...news]);
+        else if (modalType === "committee") setCommittee([itemToSave, ...committee]);
+        else if (modalType === "gallery") setGallery([itemToSave, ...gallery]);
+        else if (modalType === "activities") setActivities([itemToSave, ...activities]);
+        else if (modalType === "announcements") setAnnouncements([itemToSave, ...announcements]);
+        else if (modalType === "donors") setDonors([itemToSave, ...donors]);
+        else if (modalType === "members") setMembers([itemToSave, ...members]);
+      }
     } catch (err) {
-      console.log(`Add ${modalType} API failed:`, err);
+      console.log(`Save ${modalType} API failed:`, err);
       // Fallback state update
       const fallbackItem = requestBody;
-      if (modalType === "campaigns") setCampaigns([fallbackItem, ...campaigns]);
-      else if (modalType === "news") setNews([fallbackItem, ...news]);
-      else if (modalType === "committee") setCommittee([fallbackItem, ...committee]);
-      else if (modalType === "gallery") setGallery([fallbackItem, ...gallery]);
-      else if (modalType === "activities") setActivities([fallbackItem, ...activities]);
-      else if (modalType === "announcements") setAnnouncements([fallbackItem, ...announcements]);
-      else if (modalType === "donors") setDonors([fallbackItem, ...donors]);
-      else if (modalType === "members") setMembers([fallbackItem, ...members]);
+      if (isEdit) {
+        if (modalType === "campaigns") setCampaigns(campaigns.map(c => String(c.id) === String(currentId) ? fallbackItem : c));
+        else if (modalType === "news") setNews(news.map(n => String(n.id) === String(currentId) ? fallbackItem : n));
+        else if (modalType === "committee") setCommittee(committee.map(m => String(m.id) === String(currentId) ? fallbackItem : m));
+        else if (modalType === "gallery") setGallery(gallery.map(g => String(g.id) === String(currentId) ? fallbackItem : g));
+        else if (modalType === "activities") setActivities(activities.map(a => String(a.id) === String(currentId) ? fallbackItem : a));
+        else if (modalType === "announcements") setAnnouncements(announcements.map(an => String(an.id) === String(currentId) ? fallbackItem : an));
+        else if (modalType === "donors") setDonors(donors.map(d => String(d.id) === String(currentId) ? fallbackItem : d));
+        else if (modalType === "members") setMembers(members.map(m => String(m.id) === String(currentId) ? fallbackItem : m));
+      } else {
+        if (modalType === "campaigns") setCampaigns([fallbackItem, ...campaigns]);
+        else if (modalType === "news") setNews([fallbackItem, ...news]);
+        else if (modalType === "committee") setCommittee([fallbackItem, ...committee]);
+        else if (modalType === "gallery") setGallery([fallbackItem, ...gallery]);
+        else if (modalType === "activities") setActivities([fallbackItem, ...activities]);
+        else if (modalType === "announcements") setAnnouncements([fallbackItem, ...announcements]);
+        else if (modalType === "donors") setDonors([fallbackItem, ...donors]);
+        else if (modalType === "members") setMembers([fallbackItem, ...members]);
+      }
     } finally {
       setIsSaving(false);
       setIsModalOpen(false);
+      setEditingItem(null);
     }
   };
 
@@ -680,6 +740,7 @@ export default function Dashboard() {
                 <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${colors.borderMain}`, color: colors.textMuted }}>
+                      <th style={{ padding: "0.75rem", width: "65px" }}>Photo</th>
                       <th style={{ padding: "0.75rem" }}>Designation</th>
                       <th style={{ padding: "0.75rem" }}>Name</th>
                       <th style={{ padding: "0.75rem" }}>Committee Level</th>
@@ -689,11 +750,31 @@ export default function Dashboard() {
                   <tbody>
                     {committee.map((m) => (
                       <tr key={m.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
-                        <td style={{ padding: "0.75rem" }}>{m.role}</td>
+                        <td style={{ padding: "0.75rem" }}>
+                          <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", background: colors.inputBg, border: `1px solid ${colors.borderMain}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {m.image || m.photo ? (
+                              <img 
+                                src={resolveImageUrl(m.image || m.photo)} 
+                                alt={m.name} 
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                              />
+                            ) : (
+                              <i className="bi bi-person-fill" style={{ fontSize: "1.3rem", color: colors.textMuted }}></i>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: "0.75rem", fontWeight: "600" }}>{m.role}</td>
                         <td style={{ padding: "0.75rem" }}>{m.name}</td>
                         <td style={{ padding: "0.75rem" }}>{m.area}</td>
                         <td style={{ padding: "0.75rem" }}>
-                          <button onClick={() => handleDelete("committee", m.id)} style={{ color: "#ef4444", border: "none", background: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-trash"></i> Delete</button>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                            <button onClick={() => openEditModal("committee", m)} style={{ color: "#2563eb", border: "none", background: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.25rem", fontWeight: "600", fontSize: "0.85rem" }}>
+                              <i className="bi bi-pencil-square"></i> Edit
+                            </button>
+                            <button onClick={() => handleDelete("committee", m.id)} style={{ color: "#ef4444", border: "none", background: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.25rem", fontWeight: "600", fontSize: "0.85rem" }}>
+                              <i className="bi bi-trash"></i> Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -896,8 +977,8 @@ export default function Dashboard() {
             )}
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.25rem 1.5rem", borderBottom: `1px solid ${colors.borderMain}` }}>
-              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700" }}>Add New Entry ({modalType})</h3>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "1.25rem", cursor: "pointer" }}><i className="bi bi-x-lg"></i></button>
+              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700" }}>{editingItem ? `Edit ${modalType === "committee" ? "Committee Bearer" : modalType}` : `Add New ${modalType === "committee" ? "Committee Bearer" : modalType}`}</h3>
+              <button onClick={() => { setIsModalOpen(false); setEditingItem(null); }} style={{ background: "none", border: "none", color: colors.textMuted, fontSize: "1.25rem", cursor: "pointer" }}><i className="bi bi-x-lg"></i></button>
             </div>
             
             <form onSubmit={handleAddSubmit} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -975,17 +1056,46 @@ export default function Dashboard() {
               {/* COMMITTEE FORM */}
               {modalType === "committee" && (
                 <>
+                  {/* Photo Picker File Input with Live Preview */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: "500" }}>Profile Photo</label>
+                    
+                    {/* Image Preview if exists */}
+                    {(formImageFile || (editingItem && (editingItem.image || editingItem.photo))) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.4rem" }}>
+                        <div style={{ width: "56px", height: "56px", borderRadius: "50%", overflow: "hidden", border: "2px solid #E31837", display: "flex", alignItems: "center", justifyContent: "center", background: colors.inputBg }}>
+                          <img 
+                            src={formImageFile || resolveImageUrl(editingItem.image || editingItem.photo)} 
+                            alt="Preview" 
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                          />
+                        </div>
+                        <span style={{ fontSize: "0.8rem", color: colors.textMuted }}>
+                          {formImageFile ? "New photo selected" : "Current profile photo"}
+                        </span>
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", border: `1px solid ${colors.borderMain}`, padding: "0.4rem 0.75rem", borderRadius: "6px", background: colors.inputBg }}>
+                      <input type="file" id="committee-photo" accept="image/*" onChange={handlePhotoSelect} style={{ display: "none" }} />
+                      <label htmlFor="committee-photo" style={{ background: "#E31837", color: "#fff", padding: "0.3rem 0.75rem", borderRadius: "4px", fontSize: "0.8rem", cursor: "pointer", fontWeight: "600" }}>
+                        {editingItem && (editingItem.image || editingItem.photo) ? "Change Photo" : "Choose Photo"}
+                      </label>
+                      <span style={{ fontSize: "0.8rem", color: colors.textMuted, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "250px" }}>{formImageName}</span>
+                    </div>
+                  </div>
+
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.85rem", fontWeight: "500" }}>Member Name *</label>
                     <input type="text" required value={formName} onChange={(e) => setFormName(e.target.value)} style={{ padding: "0.6rem", borderRadius: "6px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText }} />
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.85rem", fontWeight: "500" }}>Designation/Role *</label>
-                    <input type="text" required placeholder="e.g. Joint Secretary" value={formRole} onChange={(e) => setFormRole(e.target.value)} style={{ padding: "0.6rem", borderRadius: "6px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText }} />
+                    <input type="text" required placeholder="e.g. District President" value={formRole} onChange={(e) => setFormRole(e.target.value)} style={{ padding: "0.6rem", borderRadius: "6px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText }} />
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.85rem", fontWeight: "500" }}>Committee Level *</label>
-                    <input type="text" required placeholder="e.g. DYFI Dakshina Kannada" value={formArea} onChange={(e) => setFormArea(e.target.value)} style={{ padding: "0.6rem", borderRadius: "6px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText }} />
+                    <input type="text" required placeholder="e.g. Dakshina Kannada District" value={formArea} onChange={(e) => setFormArea(e.target.value)} style={{ padding: "0.6rem", borderRadius: "6px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText }} />
                   </div>
                 </>
               )}
@@ -1155,8 +1265,8 @@ export default function Dashboard() {
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", borderTop: `1px solid ${colors.borderMain}`, paddingTop: "1.25rem", marginTop: "0.5rem" }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ background: "transparent", border: `1px solid ${colors.borderMain}`, color: colors.textMain, padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>Cancel</button>
-                <button type="submit" style={{ background: "#E31837", border: "none", color: "#fff", padding: "0.5rem 1.25rem", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>Save Entry</button>
+                <button type="button" onClick={() => { setIsModalOpen(false); setEditingItem(null); }} style={{ background: "transparent", border: `1px solid ${colors.borderMain}`, color: colors.textMain, padding: "0.5rem 1rem", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>Cancel</button>
+                <button type="submit" style={{ background: "#E31837", border: "none", color: "#fff", padding: "0.5rem 1.25rem", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>{editingItem ? "Update Record" : "Save Entry"}</button>
               </div>
             </form>
           </div>
