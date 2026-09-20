@@ -289,10 +289,10 @@ export default function Dashboard() {
     const currentId = isEdit ? editingItem.id : String(Date.now());
     let imageUrl = isEdit ? (editingItem.image || editingItem.photo || editingItem.src || "") : "/images/hero-banner-1.jpg";
 
-    // Upload image to Cloudinary via backend if selected
+    // Upload image to Cloudinary via admin's own backend (not main site)
     if (formImageFile) {
       try {
-        const uploadRes = await fetch(`${apiBase}/api/upload`, {
+        const uploadRes = await fetch(`/api/upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ file: formImageFile })

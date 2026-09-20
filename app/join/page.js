@@ -401,34 +401,6 @@ export default function JoinPortal() {
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         onError={(e) => { e.target.style.display = "none"; }}
                       />
-                      {/* Scanner sweep line animation */}
-                      <div style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: "3px",
-                        background: "linear-gradient(90deg, transparent, #00e676, transparent)",
-                        animation: "scanSweep 2s linear infinite",
-                        boxShadow: "0 0 8px #00e676",
-                      }} />
-                      {/* Corner brackets */}
-                      {["tl", "tr", "bl", "br"].map((c) => (
-                        <div key={c} style={{
-                          position: "absolute",
-                          width: 24,
-                          height: 24,
-                          borderColor: "#00e676",
-                          borderStyle: "solid",
-                          borderWidth: c.includes("t") ? "3px 0 0" : "0 0 3px",
-                          borderLeftWidth: c.includes("l") ? "3px" : "0",
-                          borderRightWidth: c.includes("r") ? "3px" : "0",
-                          top: c.includes("t") ? 8 : "auto",
-                          bottom: c.includes("b") ? 8 : "auto",
-                          left: c.includes("l") ? 8 : "auto",
-                          right: c.includes("r") ? 8 : "auto",
-                        }} />
-                      ))}
                     </div>
 
                     <p className="qr-tip" style={{ fontSize: "0.83rem", maxWidth: "300px", margin: "0 auto 0.25rem" }}>
@@ -436,24 +408,21 @@ export default function JoinPortal() {
                     </p>
                     <p style={{ fontSize: "0.76rem", color: "#aaa" }}>UPI ID: <strong>dyfidk16357@fbl</strong></p>
 
-                    {/* Skip scanner button — jump to payment phase early */}
+                    {/* I've scanned button — always disabled during scanner phase, disappears when timer ends */}
                     <button
                       type="button"
-                      onClick={() => {
-                        clearInterval(timerRef.current);
-                        setPayPhase("payment");
-                        setCountdown(60);
-                      }}
+                      disabled
                       style={{
                         marginTop: "1rem",
                         background: "none",
-                        border: "1.5px solid #1565c0",
-                        color: "#1565c0",
+                        border: "1.5px solid #9e9e9e",
+                        color: "#9e9e9e",
                         borderRadius: "2rem",
                         padding: "0.45rem 1.2rem",
                         fontSize: "0.82rem",
-                        cursor: "pointer",
+                        cursor: "not-allowed",
                         fontWeight: 600,
+                        opacity: 0.5,
                       }}
                     >
                       I've scanned — Go to payment confirmation →
