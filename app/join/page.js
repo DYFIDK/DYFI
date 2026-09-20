@@ -28,7 +28,7 @@ export default function JoinPortal() {
   // Start the scanner 2-min countdown when entering step 2
   useEffect(() => {
     if (step === 2 && payPhase === "scanner") {
-      setCountdown(120);
+      setCountdown(60);
       timerRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
