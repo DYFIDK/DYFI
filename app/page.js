@@ -13,12 +13,27 @@ export default function Home() {
   const [activities, setActivities] = useState([]);
   const [committee, setCommittee] = useState([]);
   const [gallery, setGallery] = useState([]);
+  const [emergencyHelpline, setEmergencyHelpline] = useState("+91 9448123456");
 
   useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.helpline) setEmergencyHelpline(data.helpline);
+      })
+      .catch((err) => console.log("Fetch settings failed:", err));
     const fetchEntity = (entity, setter) => {
       fetch(`/api/${entity}`)
         .then((res) => res.json())
-        .then((data) => setter(data))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            // Never show Draft items on the public website
+            const publishedOnly = data.filter((item) => !item.status || String(item.status).toLowerCase() !== "draft");
+            setter(publishedOnly);
+          } else {
+            setter(data);
+          }
+        })
         .catch((err) => console.log(`Fetch ${entity} failed:`, err));
     };
 
@@ -157,16 +172,33 @@ export default function Home() {
           </div>
           <div className="campaigns-grid">
             {campaigns.slice(0, 3).map((c) => (
-              <div key={c.id} className="campaign-card">
-                <div className="campaign-card-img">
-                  <img src={c.image || "/images/hero-banner-1.jpg"} alt={c.title} />
+              <Link key={c.id} href={`/campaigns/${c.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="campaign-card" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                  <div className="campaign-card-img">
+                    <img src={c.image || "/images/hero-banner-1.jpg"} alt={c.title} />
+                  </div>
+                  <div className="campaign-card-body" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "#888" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-calendar3" style={{ fontSize: "0.72rem" }}></i> {c.date}</span>
+                        {c.views && <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-eye" style={{ fontSize: "0.72rem" }}></i> {c.views}</span>}
+                      </div>
+                      {c.status && (
+                        <span style={{ background: c.status === "Published" ? "#f0fdf4" : "#fefce8", color: c.status === "Published" ? "#16a34a" : "#ca8a04", padding: "0.15rem 0.5rem", borderRadius: "10px", fontSize: "0.7rem", fontWeight: "600" }}>
+                          {c.status}
+                        </span>
+                      )}
+                    </div>
+                    <h3>{c.title}</h3>
+                    <p>{c.description}</p>
+                    <div style={{ marginTop: "auto", paddingTop: "0.5rem" }}>
+                      <span style={{ color: "var(--color-primary)", fontWeight: "600", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                        View Campaign <i className="bi bi-arrow-right"></i>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="campaign-card-body">
-                  <div className="campaign-card-date"><i className="bi bi-calendar3"></i> {c.date}</div>
-                  <h3>{c.title}</h3>
-                  <p>{c.description}</p>
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -211,36 +243,51 @@ export default function Home() {
           </div>
           <div className="campaigns-grid">
             {activities.slice(0, 3).map((a) => (
-              <div key={a.id} className="campaign-card">
-                <div className="campaign-card-img">
-                  <img src={a.image || "/images/hero-banner-2.jpg"} alt={a.title} />
+              <Link key={a.id} href={`/activities/${a.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="campaign-card" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                  <div className="campaign-card-img">
+                    <img src={a.image || "/images/hero-banner-2.jpg"} alt={a.title} />
+                  </div>
+                  <div className="campaign-card-body" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "#888" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-calendar3" style={{ fontSize: "0.72rem" }}></i> {a.date}</span>
+                        {a.views && <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-eye" style={{ fontSize: "0.72rem" }}></i> {a.views}</span>}
+                      </div>
+                      <span style={{ background: "rgba(227, 24, 55, 0.08)", color: "var(--color-primary)", padding: "0.15rem 0.5rem", borderRadius: "10px", fontSize: "0.7rem", fontWeight: "600" }}>
+                        Activity
+                      </span>
+                    </div>
+                    <h3>{a.title}</h3>
+                    <p>{a.description}</p>
+                    <div style={{ marginTop: "auto", paddingTop: "0.5rem" }}>
+                      <span style={{ color: "var(--color-primary)", fontWeight: "600", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                        View Details <i className="bi bi-arrow-right"></i>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="campaign-card-body">
-                  <div className="campaign-card-date"><i className="bi bi-calendar3"></i> {a.date}</div>
-                  <h3>{a.title}</h3>
-                  <p>{a.description}</p>
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
       {/* ANNOUNCEMENTS */}
-      <section className="campaigns-section" style={{ background: "var(--color-bg-white)", padding: "5rem 2rem" }}>
+      <section className="campaigns-section" style={{ background: "var(--color-bg-white)", padding: "clamp(2.5rem, 5vw, 4.5rem) clamp(1rem, 3vw, 2rem)" }}>
         <div className="campaigns-inner" style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div className="section-header">
             <h2>Official <span>Announcements</span></h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginTop: "1rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: "1.25rem", marginTop: "1rem" }}>
             {announcements.map((a) => (
-              <div key={a.id} style={{ background: "var(--color-bg-light)", padding: "2rem", borderRadius: "12px", borderLeft: "5px solid var(--color-primary)", boxShadow: "var(--shadow-card)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                  <span style={{ background: "rgba(227, 24, 55, 0.1)", color: "var(--color-primary)", padding: "0.25rem 0.75rem", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700" }}>{a.type || "NOTIFICATION"}</span>
-                  <span style={{ fontSize: "0.85rem", color: "#666" }}><i className="bi bi-calendar-event"></i> {a.date}</span>
+              <div key={a.id} style={{ background: "var(--color-bg-light)", padding: "clamp(1.25rem, 2.5vw, 1.75rem)", borderRadius: "12px", borderLeft: "4px solid var(--color-primary)", boxShadow: "var(--shadow-card)", display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <span style={{ background: "rgba(227, 24, 55, 0.1)", color: "var(--color-primary)", padding: "0.2rem 0.6rem", borderRadius: "12px", fontSize: "0.72rem", fontWeight: "700", letterSpacing: "0.3px" }}>{a.type || "NOTIFICATION"}</span>
+                  <span style={{ fontSize: "0.75rem", color: "#888", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-calendar-event" style={{ fontSize: "0.72rem" }}></i> {a.date}</span>
                 </div>
-                <h4 style={{ fontSize: "1.15rem", fontWeight: "700", marginBottom: "0.75rem", color: "var(--color-primary-dark)" }}>{a.title || "Announcement Alert"}</h4>
-                <p style={{ fontSize: "0.95rem", color: "#444", lineHeight: "1.6" }}>{a.content}</p>
+                <h4 style={{ fontSize: "1.05rem", fontWeight: "700", marginBottom: "0.5rem", color: "var(--color-primary-dark)", lineHeight: 1.35 }}>{a.title || "Announcement Alert"}</h4>
+                <p style={{ fontSize: "0.85rem", color: "#555", lineHeight: "1.55", margin: 0 }}>{a.content}</p>
               </div>
             ))}
           </div>
@@ -302,7 +349,7 @@ export default function Home() {
                 </span>
               </button>
               <p style={{ fontSize: "0.95rem", marginTop: "1.25rem", fontWeight: "700", color: "white", letterSpacing: "0.5px" }}>
-                <i className="bi bi-telephone-fill" style={{ marginRight: "0.25rem", color: "#ff4d4d" }}></i> Emergency Helpline: +91 9448123456
+                <i className="bi bi-telephone-fill" style={{ marginRight: "0.25rem", color: "#ff4d4d" }}></i> Emergency Helpline: {emergencyHelpline}
               </p>
             </div>
           </div>
@@ -356,16 +403,31 @@ export default function Home() {
           </div>
           <div className="news-grid">
             {news.slice(0, 3).map((n) => (
-              <div key={n.id} className="news-card">
-                <div className="news-card-img">
-                  <img src={n.image || "/images/hero-banner-1.jpg"} alt={n.title} />
+              <Link key={n.id} href={`/news/${n.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <div className="news-card" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                  <div className="news-card-img">
+                    <img src={n.image || "/images/hero-banner-1.jpg"} alt={n.title} />
+                  </div>
+                  <div className="news-card-body" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "#888" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-calendar3" style={{ fontSize: "0.72rem" }}></i> {n.date}</span>
+                        {n.views && <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}><i className="bi bi-eye" style={{ fontSize: "0.72rem" }}></i> {n.views}</span>}
+                      </div>
+                      <span style={{ background: "rgba(227, 24, 55, 0.08)", color: "var(--color-primary)", padding: "0.15rem 0.5rem", borderRadius: "10px", fontSize: "0.7rem", fontWeight: "600" }}>
+                        Press Release
+                      </span>
+                    </div>
+                    <h3>{n.title}</h3>
+                    <p>{n.content}</p>
+                    <div style={{ marginTop: "auto", paddingTop: "0.5rem" }}>
+                      <span style={{ color: "var(--color-primary)", fontWeight: "600", fontSize: "0.82rem", display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                        Read Article <i className="bi bi-arrow-right"></i>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="news-card-body">
-                  <div className="news-card-date"><i className="bi bi-calendar3"></i> {n.date}</div>
-                  <h3>{n.title}</h3>
-                  <p>{n.content}</p>
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

@@ -1,42 +1,10 @@
 [
   {
-    "id": "DK-2025-604139",
-    "name": "NARESH N",
-    "phone": "9535808478",
-    "area": "Ullal",
-    "type": "Youth",
-    "date": "2026-09-20"
-  },
-  {
-    "id": "DK-2025-995288",
-    "name": "Naresh N re N",
-    "phone": "9535808478",
-    "area": "Moodbidri",
-    "type": "Youth",
-    "date": "2026-09-20"
-  },
-  {
-    "id": "DK-2025-449181",
-    "name": "NARESH N",
-    "phone": "9535808478",
-    "area": "Bantwal",
-    "type": "Youth",
-    "date": "2026-09-19"
-  },
-  {
     "id": "DK-2025-781290",
     "name": "Mohammad Harris",
     "phone": "9008123456",
     "area": "Bantwal",
     "type": "Youth",
     "date": "2026-08-24"
-  },
-  {
-    "id": "DK-2025-612984",
-    "name": "Divya Shetty",
-    "phone": "8971234567",
-    "area": "Moodbidri",
-    "type": "Student",
-    "date": "2026-08-25"
   }
 ]

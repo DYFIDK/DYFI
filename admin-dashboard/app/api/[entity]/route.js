@@ -19,8 +19,14 @@ const ALLOWED_ENTITIES = new Set([
   "members",
 ]);
 
+// Determine local JSON file path: check root public first, fallback to admin public
 const getFilePath = (entity) => {
-  return path.join(process.cwd(), "public", `${entity}.json`);
+  const rootPublicPath = path.resolve(process.cwd(), "..", "public", `${entity}.json`);
+  if (fs.existsSync(rootPublicPath)) {
+    return rootPublicPath;
+  }
+  const localPublicPath = path.join(process.cwd(), "public", `${entity}.json`);
+  return localPublicPath;
 };
 
 // Default initial mock data for each entity
@@ -78,7 +84,8 @@ const getLocalJSONData = (entity) => {
 
 const saveLocalJSONData = (entity, updatedData) => {
   try {
-    fs.writeFileSync(getFilePath(entity), JSON.stringify(updatedData, null, 2));
+    const filePath = getFilePath(entity);
+    fs.writeFileSync(filePath, JSON.stringify(updatedData, null, 2));
   } catch (err) {
     console.error("Local JSON save failed:", err);
   }
@@ -101,28 +108,15 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: "Invalid entity" }, { status: 400, headers: corsHeaders });
   }
 
-  const url = new URL(request.url);
-  const includeDrafts = url.searchParams.get("admin") === "true" || url.searchParams.get("all") === "true";
-
-  // Filter out drafts for public website consumption
-  const filterDrafts = (items) => {
-    if (!Array.isArray(items)) return items;
-    if (includeDrafts) return items;
-    return items.filter((item) => {
-      if (!item || !item.status) return true;
-      return String(item.status).trim().toLowerCase() !== "draft";
-    });
-  };
-
   // 1. PRIMARY: Query Firebase Firestore database
   const firestoreRes = await getFirestoreDocuments(entity);
   if (firestoreRes.success && firestoreRes.data && firestoreRes.data.length > 0) {
-    return NextResponse.json(filterDrafts(firestoreRes.data), { headers: corsHeaders });
+    return NextResponse.json(firestoreRes.data, { headers: corsHeaders });
   }
 
-  // 2. FALLBACK: Read local JSON files (used when Firestore is empty, syncing, or offline)
+  // 2. FALLBACK: Read local JSON files
   const localData = getLocalJSONData(entity);
-  return NextResponse.json(filterDrafts(localData), { headers: corsHeaders });
+  return NextResponse.json(localData, { headers: corsHeaders });
 }
 
 export async function POST(request, { params }) {
@@ -158,7 +152,7 @@ export async function POST(request, { params }) {
       { headers: corsHeaders }
     );
   } catch (error) {
-    console.error("POST entity error:", error);
+    console.error("POST entity error in admin:", error);
     return NextResponse.json({ success: false, error: "Failed to save entry" }, { status: 500, headers: corsHeaders });
   }
 }
@@ -204,7 +198,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ success: false, error: "Missing entity ID query param" }, { status: 400, headers: corsHeaders });
     }
 
-    // Clean up Cloudinary image if present in local data
+    // Clean up Cloudinary image if present
     const localData = getLocalJSONData(entity);
     const itemToDelete = localData.find((item) => String(item.id) === String(id));
     const imageUrl = itemToDelete?.image || itemToDelete?.src || null;
@@ -221,7 +215,7 @@ export async function DELETE(request, { params }) {
 
     return NextResponse.json({ success: true }, { headers: corsHeaders });
   } catch (error) {
-    console.error("DELETE entity error:", error);
+    console.error("DELETE entity error in admin:", error);
     return NextResponse.json({ success: false, error: "Failed to delete entry" }, { status: 500, headers: corsHeaders });
   }
 }

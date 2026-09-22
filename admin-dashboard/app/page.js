@@ -23,26 +23,29 @@ export default function Dashboard() {
     if (process.env.NEXT_PUBLIC_MAIN_SITE_URL) {
       return process.env.NEXT_PUBLIC_MAIN_SITE_URL.replace(/\/$/, "");
     }
-    if (typeof window !== "undefined") {
-      const port = window.location.port;
-      if (port === "3000") return "http://localhost:3001";
-      if (port === "3001") return "http://localhost:3000";
-    }
-    return "http://localhost:3001";
+    return ""; // Direct relative endpoint to admin dashboard's own API
   });
+  const [dbStatus, setDbStatus] = useState({ loading: true, connected: false, projectId: "dyfi-dk" });
 
-  // Detect and resolve port conflicts automatically in local dev
+  // Check database connectivity on mount
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_MAIN_SITE_URL) return;
-    if (typeof window !== "undefined") {
-      const port = window.location.port;
-      if (port === "3000") {
-        setApiBase("http://localhost:3001");
-      } else if (port === "3001") {
-        setApiBase("http://localhost:3000");
-      }
-    }
-  }, []);
+    fetch(`${apiBase}/api/db-status`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.firestore) {
+          setDbStatus({
+            loading: false,
+            connected: data.firestore.connected,
+            status: data.firestore.status,
+            projectId: data.firestore.projectId,
+            error: data.firestore.error,
+          });
+        }
+      })
+      .catch(() => {
+        setDbStatus({ loading: false, connected: false, projectId: "dyfi-dk" });
+      });
+  }, [apiBase]);
 
   // Validate admin login session on mount
   useEffect(() => {
@@ -77,11 +80,20 @@ export default function Dashboard() {
   const [donors, setDonors] = useState([]);
   const [members, setMembers] = useState([]);
 
+  // Settings state
+  const [contactSettings, setContactSettings] = useState({ phone: "", helpline: "", email: "", address: "" });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState({ type: "", text: "" });
+
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState({ type: "", id: null, title: "" });
+
   // Fetch all entities from central API on load
   useEffect(() => {
     const entities = ["campaigns", "news", "committee", "gallery", "activities", "announcements", "donors", "members"];
     entities.forEach((entity) => {
-      fetch(`${apiBase}/api/${entity}`)
+      fetch(`${apiBase}/api/${entity}?admin=true`)
         .then((res) => res.json())
         .then((data) => {
           if (entity === "campaigns") setCampaigns(data);
@@ -95,7 +107,6 @@ export default function Dashboard() {
         })
         .catch((err) => {
           console.log(`Fetch ${entity} failed:`, err);
-          // Fallback static values in case the server API is not reachable on boot
           const fallbackDefaults = {
             campaigns: [
               { id: 1, title: "Regional Job Rights Initiative", date: "2025-08-15", status: "Published", description: "Demanding fair employment opportunities for local Dakshina Kannada youth in regional public sectors, Mangaluru Port, and industrial zones.", image: "/images/hero-banner-1.jpg" },
@@ -143,6 +154,23 @@ export default function Dashboard() {
     });
   }, [apiBase]);
 
+  // Fetch contact settings on load
+  useEffect(() => {
+    fetch(`/api/settings`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setContactSettings({
+            phone: data.phone || "",
+            helpline: data.helpline || "",
+            email: data.email || "",
+            address: data.address || ""
+          });
+        }
+      })
+      .catch((err) => console.log("Settings fetch failed:", err));
+  }, []);
+
   // Modal Control States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState(""); // campaigns, news, committee, gallery, activities, announcements, donors, members
@@ -187,20 +215,35 @@ export default function Dashboard() {
   // not the admin dashboard (which doesn't have those files in its public folder).
   // Base64 data URIs and absolute Cloudinary URLs pass through unchanged.
   const resolveImageUrl = (src) => {
-    if (!src) return "/images/hero-banner-1.jpg";
+    if (!src || src === "/images/hero-banner-1.jpg") return "";
     // Already an absolute URL (Cloudinary, etc.) or data URI — use as-is
     if (src.startsWith("http") || src.startsWith("data:")) return src;
     // Relative path — prefix with main website's base URL
     return `${apiBase}${src}`;
   };
 
-  const handleSignOut = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
-    } else {
-      localStorage.removeItem("dyfi-mock-session");
+  const [signOutHover, setSignOutHover] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = () => {
+    setShowLogoutModal(true);
+  };
+
+  const executeSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      } else {
+        localStorage.removeItem("dyfi-mock-session");
+      }
+      router.push("/login");
+    } catch (e) {
+      console.error("Sign out error:", e);
+      setIsSigningOut(false);
+      setShowLogoutModal(false);
     }
-    router.push("/login");
   };
 
   // Open Add Modal
@@ -252,6 +295,7 @@ export default function Dashboard() {
     } else if (type === "news") {
       setFormTitle(item.title || "");
       setFormDate(item.date || "");
+      setFormStatus(item.status || "Published");
       setFormViews(String(item.views || 0));
       setFormContent(item.content || "");
       setFormImageName(item.image ? "Current image attached" : "No file chosen");
@@ -287,7 +331,8 @@ export default function Dashboard() {
 
     const isEdit = !!editingItem;
     const currentId = isEdit ? editingItem.id : String(Date.now());
-    let imageUrl = isEdit ? (editingItem.image || editingItem.photo || editingItem.src || "") : "/images/hero-banner-1.jpg";
+    let imageUrl = isEdit ? (editingItem.image || editingItem.photo || editingItem.src || "") : "";
+    if (imageUrl === "/images/hero-banner-1.jpg") imageUrl = "";
 
     // Upload image to Cloudinary via admin's own backend (not main site)
     if (formImageFile) {
@@ -313,7 +358,7 @@ export default function Dashboard() {
     if (modalType === "campaigns") {
       requestBody = { id: currentId, title: formTitle, date: formDate, status: formStatus, description: formDesc, image: imageUrl };
     } else if (modalType === "news") {
-      requestBody = { id: currentId, title: formTitle, date: formDate, views: parseInt(formViews) || 0, content: formContent, image: imageUrl };
+      requestBody = { id: currentId, title: formTitle, date: formDate, status: formStatus, views: parseInt(formViews) || 0, content: formContent, image: imageUrl };
     } else if (modalType === "committee") {
       requestBody = { id: currentId, role: formRole, name: formName, area: formArea, image: imageUrl || (isEdit ? (editingItem.image || editingItem.photo || "") : "") };
     } else if (modalType === "gallery") {
@@ -390,13 +435,27 @@ export default function Dashboard() {
     }
   };
 
+  // Show custom delete confirmation modal
   const handleDelete = (type, id) => {
-    if (confirm("Are you sure you want to delete this entry?")) {
-      fetch(`${apiBase}/api/${type}?id=${id}`, {
-        method: "DELETE"
-      })
+    // Find the item name/title for display
+    let itemTitle = "this entry";
+    const allData = { campaigns, news, committee, gallery, activities, announcements, donors, members };
+    const items = allData[type];
+    if (items) {
+      const item = items.find(i => String(i.id) === String(id));
+      if (item) itemTitle = item.title || item.name || item.alt || item.role || `ID: ${id}`;
+    }
+    setDeleteTarget({ type, id, title: itemTitle });
+    setShowDeleteModal(true);
+  };
+
+  // Execute confirmed delete
+  const executeDelete = () => {
+    const { type, id } = deleteTarget;
+    setShowDeleteModal(false);
+    fetch(`${apiBase}/api/${type}?id=${id}`, { method: "DELETE" })
       .then((res) => res.json())
-      .then((resData) => {
+      .then(() => {
         if (type === "campaigns") setCampaigns(campaigns.filter((item) => item.id !== id));
         else if (type === "news") setNews(news.filter((item) => item.id !== id));
         else if (type === "committee") setCommittee(committee.filter((item) => item.id !== id));
@@ -408,7 +467,6 @@ export default function Dashboard() {
       })
       .catch((err) => {
         console.log(`Delete ${type} failed:`, err);
-        // Fallback local delete
         if (type === "campaigns") setCampaigns(campaigns.filter((item) => item.id !== id));
         else if (type === "news") setNews(news.filter((item) => item.id !== id));
         else if (type === "committee") setCommittee(committee.filter((item) => item.id !== id));
@@ -418,6 +476,31 @@ export default function Dashboard() {
         else if (type === "donors") setDonors(donors.filter((item) => item.id !== id));
         else if (type === "members") setMembers(members.filter((item) => item.id !== id));
       });
+    setDeleteTarget({ type: "", id: null, title: "" });
+  };
+
+  // Save contact settings
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    setSettingsMsg({ type: "", text: "" });
+    try {
+      const res = await fetch(`/api/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactSettings)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSettingsMsg({ type: "success", text: "Contact details updated successfully! Changes are now live on the website." });
+      } else {
+        setSettingsMsg({ type: "error", text: "Failed to update settings. Please try again." });
+      }
+    } catch (err) {
+      console.error("Settings save error:", err);
+      setSettingsMsg({ type: "error", text: "Network error. Could not save settings." });
+    } finally {
+      setIsSavingSettings(false);
+      setTimeout(() => setSettingsMsg({ type: "", text: "" }), 5000);
     }
   };
 
@@ -481,6 +564,7 @@ export default function Dashboard() {
             { id: "announcements", label: "Announcements", icon: "bi-info-circle" },
             { id: "donors", label: "Blood Donors", icon: "bi-heart-fill" },
             { id: "members", label: "Members Registry", icon: "bi-card-list" },
+            { id: "settings", label: "Website Settings", icon: "bi-gear" },
           ].map((item) => (
             <button
               key={item.id}
@@ -519,11 +603,13 @@ export default function Dashboard() {
         <div style={{ borderTop: `1px solid ${colors.borderMain}`, paddingTop: "0.75rem", marginTop: "0.75rem", display: "flex", justifyContent: "center" }}>
           <button
             onClick={handleSignOut}
+            onMouseEnter={() => setSignOutHover(true)}
+            onMouseLeave={() => setSignOutHover(false)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: "0.5rem",
-              background: "transparent",
+              background: signOutHover ? "rgba(239, 68, 68, 0.1)" : "transparent",
               border: "none",
               color: "#ef4444",
               cursor: "pointer",
@@ -532,15 +618,12 @@ export default function Dashboard() {
               width: "100%",
               padding: "0.5rem 1rem",
               borderRadius: "8px",
-              transition: "background 0.2s"
+              transition: "all 0.25s ease",
+              transform: signOutHover ? "translateX(4px)" : "translateX(0)"
             }}
           >
-            <i className="bi bi-box-arrow-left"></i> Sign Out
+            <i className="bi bi-box-arrow-left" style={{ transition: "transform 0.25s ease", transform: signOutHover ? "translateX(-3px)" : "translateX(0)" }}></i> Sign Out
           </button>
-        </div>
-
-        <div style={{ borderTop: `1px solid ${colors.borderMain}`, paddingTop: "1rem", marginTop: "1rem" }}>
-          <p style={{ margin: 0, fontSize: "0.75rem", color: colors.textMuted, textAlign: "center" }}>Connected to Local Database</p>
         </div>
       </aside>
 
@@ -637,10 +720,45 @@ export default function Dashboard() {
               </div>
 
               <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderMain}`, borderRadius: "12px", padding: "1.5rem" }}>
-                <h3 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>Database Configuration Guidelines</h3>
-                <p style={{ fontSize: "0.9rem", color: colors.textMuted, lineHeight: "1.6" }}>
-                  To link this dashboard to your remote PostgreSQL production instance, initialize schemas for membership registrations, blood donation directories, and campus assemblies. Webhook payment trigger callbacks can be mapped directly to receive transactional alerts.
-                </p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                  <h3 style={{ fontSize: "1.1rem", margin: 0 }}>
+                    <i className="bi bi-database-fill" style={{ color: "#E31837", marginRight: "0.5rem" }}></i>
+                    Firebase Firestore Database Status
+                  </h3>
+                  <span
+                    style={{
+                      background: dbStatus.connected ? "#10b98122" : "#f59e0b22",
+                      color: dbStatus.connected ? "#10b981" : "#d97706",
+                      border: `1px solid ${dbStatus.connected ? "#10b98155" : "#f59e0b55"}`,
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "20px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {dbStatus.loading
+                      ? "Checking..."
+                      : dbStatus.connected
+                      ? "Cloud Sync Active"
+                      : "Local Storage Fallback (Rules Locked)"}
+                  </span>
+                </div>
+
+                {dbStatus.connected ? (
+                  <p style={{ fontSize: "0.9rem", color: colors.textMuted, lineHeight: "1.6", margin: 0 }}>
+                    ✅ All dynamic updates (Campaigns, News, Members, Donors, Activities, Committee, Announcements, Gallery) are actively syncing to your cloud Firebase Firestore database (Project: <strong>{dbStatus.projectId}</strong>).
+                  </p>
+                ) : (
+                  <div>
+                    <p style={{ fontSize: "0.9rem", color: colors.textMuted, lineHeight: "1.6", margin: "0 0 0.75rem 0" }}>
+                      Your database requests are currently safe and saving to local persistent storage. To enable cloud Firestore sync, update your Firebase security rules in the Firebase Console:
+                    </p>
+                    <div style={{ background: colors.bgPage, padding: "0.75rem 1rem", borderRadius: "8px", border: `1px solid ${colors.borderMain}`, fontFamily: "monospace", fontSize: "0.8rem", color: colors.textMain }}>
+                      <strong>Firebase Console → Firestore Database → Rules:</strong><br />
+                      {"rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}"}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -668,8 +786,12 @@ export default function Dashboard() {
                     {campaigns.map((c) => (
                       <tr key={c.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
                         <td style={{ padding: "0.75rem" }}>
-                          <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden" }}>
-                            <img src={resolveImageUrl(c.image)} alt={c.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden", background: colors.inputBg, border: `1px solid ${colors.borderMain}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {resolveImageUrl(c.image) ? (
+                              <img src={resolveImageUrl(c.image)} alt={c.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <i className="bi bi-image" style={{ color: colors.textMuted, fontSize: "1rem" }}></i>
+                            )}
                           </div>
                         </td>
                         <td style={{ padding: "0.75rem", fontWeight: "600" }}>{c.title}</td>
@@ -700,6 +822,7 @@ export default function Dashboard() {
                     <tr style={{ borderBottom: `1px solid ${colors.borderMain}`, color: colors.textMuted }}>
                       <th style={{ padding: "0.75rem" }}>Cover Image</th>
                       <th style={{ padding: "0.75rem" }}>Headline</th>
+                      <th style={{ padding: "0.75rem" }}>Status</th>
                       <th style={{ padding: "0.75rem" }}>Publish Date</th>
                       <th style={{ padding: "0.75rem" }}>Content Summary</th>
                       <th style={{ padding: "0.75rem" }}>Views</th>
@@ -710,11 +833,27 @@ export default function Dashboard() {
                     {news.map((n) => (
                       <tr key={n.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
                         <td style={{ padding: "0.75rem" }}>
-                          <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden" }}>
-                            <img src={resolveImageUrl(n.image)} alt={n.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden", background: colors.inputBg, border: `1px solid ${colors.borderMain}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {resolveImageUrl(n.image) ? (
+                              <img src={resolveImageUrl(n.image)} alt={n.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <i className="bi bi-newspaper" style={{ color: colors.textMuted, fontSize: "1rem" }}></i>
+                            )}
                           </div>
                         </td>
                         <td style={{ padding: "0.75rem", fontWeight: "600" }}>{n.title}</td>
+                        <td style={{ padding: "0.75rem" }}>
+                          <span style={{
+                            background: n.status === "Published" ? "#10b98122" : "#f59e0b22",
+                            color: n.status === "Published" ? "#10b981" : "#d97706",
+                            padding: "0.2rem 0.55rem",
+                            borderRadius: "12px",
+                            fontSize: "0.75rem",
+                            fontWeight: "600"
+                          }}>
+                            {n.status || "Published"}
+                          </span>
+                        </td>
                         <td style={{ padding: "0.75rem" }}>{n.date}</td>
                         <td style={{ padding: "0.75rem", fontSize: "0.85rem", color: colors.textMuted, maxWidth: "250px" }}>{n.content}</td>
                         <td style={{ padding: "0.75rem" }}>{n.views}</td>
@@ -752,7 +891,7 @@ export default function Dashboard() {
                       <tr key={m.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
                         <td style={{ padding: "0.75rem" }}>
                           <div style={{ width: "44px", height: "44px", borderRadius: "50%", overflow: "hidden", background: colors.inputBg, border: `1px solid ${colors.borderMain}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            {m.image || m.photo ? (
+                            {resolveImageUrl(m.image || m.photo) ? (
                               <img 
                                 src={resolveImageUrl(m.image || m.photo)} 
                                 alt={m.name} 
@@ -829,8 +968,12 @@ export default function Dashboard() {
                     {activities.map((a) => (
                       <tr key={a.id} style={{ borderBottom: `1px solid ${colors.tableRowBorder}` }}>
                         <td style={{ padding: "0.75rem" }}>
-                          <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden" }}>
-                            <img src={resolveImageUrl(a.image)} alt={a.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <div style={{ width: "50px", height: "35px", borderRadius: "4px", overflow: "hidden", background: colors.inputBg, border: `1px solid ${colors.borderMain}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {resolveImageUrl(a.image) ? (
+                              <img src={resolveImageUrl(a.image)} alt={a.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <i className="bi bi-calendar-event" style={{ color: colors.textMuted, fontSize: "1rem" }}></i>
+                            )}
                           </div>
                         </td>
                         <td style={{ padding: "0.75rem", fontWeight: "600" }}>{a.title}</td>
@@ -960,6 +1103,176 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* SETTINGS PANEL */}
+          {activeTab === "settings" && (
+            <div>
+              {/* Contact Information Card */}
+              <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderMain}`, borderRadius: "12px", padding: "1.5rem", marginBottom: "1.5rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                  <div>
+                    <h3 style={{ fontSize: "1.1rem", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <i className="bi bi-telephone-fill" style={{ color: "#E31837" }}></i>
+                      Contact Information
+                    </h3>
+                    <p style={{ margin: "0.25rem 0 0", fontSize: "0.8rem", color: colors.textMuted }}>Update the phone, email, and address displayed on the public website.</p>
+                  </div>
+                </div>
+
+                {settingsMsg.text && (
+                  <div style={{
+                    padding: "0.75rem 1rem",
+                    borderRadius: "8px",
+                    marginBottom: "1.25rem",
+                    fontSize: "0.85rem",
+                    fontWeight: "600",
+                    background: settingsMsg.type === "success" ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+                    color: settingsMsg.type === "success" ? "#10b981" : "#ef4444",
+                    border: `1px solid ${settingsMsg.type === "success" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
+                  }}>
+                    <i className={`bi ${settingsMsg.type === "success" ? "bi-check-circle-fill" : "bi-exclamation-circle-fill"}`}></i>
+                    {settingsMsg.text}
+                  </div>
+                )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: colors.textMuted, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <i className="bi bi-telephone"></i> Office Phone
+                    </label>
+                    <input
+                      type="text"
+                      value={contactSettings.phone}
+                      onChange={(e) => setContactSettings({ ...contactSettings, phone: e.target.value })}
+                      placeholder="e.g. 0824-2440123"
+                      style={{ padding: "0.65rem 0.85rem", borderRadius: "8px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText, fontSize: "0.9rem" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: colors.textMuted, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <i className="bi bi-phone"></i> Emergency Helpline
+                    </label>
+                    <input
+                      type="text"
+                      value={contactSettings.helpline}
+                      onChange={(e) => setContactSettings({ ...contactSettings, helpline: e.target.value })}
+                      placeholder="e.g. +91 9448123456"
+                      style={{ padding: "0.65rem 0.85rem", borderRadius: "8px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText, fontSize: "0.9rem" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: colors.textMuted, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <i className="bi bi-envelope"></i> Official Email
+                    </label>
+                    <input
+                      type="email"
+                      value={contactSettings.email}
+                      onChange={(e) => setContactSettings({ ...contactSettings, email: e.target.value })}
+                      placeholder="e.g. dyfioffice.dk@gmail.com"
+                      style={{ padding: "0.65rem 0.85rem", borderRadius: "8px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText, fontSize: "0.9rem" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: colors.textMuted, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <i className="bi bi-geo-alt"></i> Office Address
+                    </label>
+                    <textarea
+                      rows="2"
+                      value={contactSettings.address}
+                      onChange={(e) => setContactSettings({ ...contactSettings, address: e.target.value })}
+                      placeholder="Full office address..."
+                      style={{ padding: "0.65rem 0.85rem", borderRadius: "8px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText, fontSize: "0.9rem", fontFamily: "inherit", resize: "vertical" }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.5rem", borderTop: `1px solid ${colors.borderMain}`, paddingTop: "1.25rem" }}>
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={isSavingSettings}
+                    style={{
+                      background: "#E31837",
+                      border: "none",
+                      color: "#fff",
+                      padding: "0.65rem 1.5rem",
+                      borderRadius: "8px",
+                      cursor: isSavingSettings ? "not-allowed" : "pointer",
+                      fontWeight: "700",
+                      fontSize: "0.9rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      opacity: isSavingSettings ? 0.7 : 1,
+                      transition: "all 0.2s ease",
+                      boxShadow: "0 4px 12px rgba(227, 24, 55, 0.25)"
+                    }}
+                  >
+                    {isSavingSettings ? (
+                      <>
+                        <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }}></span>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-cloud-upload"></i>
+                        Save & Publish to Website
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Preview Card */}
+              <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderMain}`, borderRadius: "12px", padding: "1.5rem" }}>
+                <h3 style={{ fontSize: "1rem", margin: "0 0 1rem", display: "flex", alignItems: "center", gap: "0.5rem", color: colors.textMuted }}>
+                  <i className="bi bi-eye"></i> Live Preview — How it appears on the website
+                </h3>
+                <div style={{ background: colors.inputBg, borderRadius: "10px", padding: "1.25rem", border: `1px solid ${colors.borderMain}` }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(227, 24, 55, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#E31837", flexShrink: 0 }}>
+                        <i className="bi bi-telephone-fill"></i>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "0.7rem", color: colors.textMuted, fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Phone</p>
+                        <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600" }}>{contactSettings.phone || "Not set"}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(227, 24, 55, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#E31837", flexShrink: 0 }}>
+                        <i className="bi bi-phone-fill"></i>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "0.7rem", color: colors.textMuted, fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Helpline</p>
+                        <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600" }}>{contactSettings.helpline || "Not set"}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(227, 24, 55, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#E31837", flexShrink: 0 }}>
+                        <i className="bi bi-envelope-fill"></i>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "0.7rem", color: colors.textMuted, fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Email</p>
+                        <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600" }}>{contactSettings.email || "Not set"}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(227, 24, 55, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#E31837", flexShrink: 0 }}>
+                        <i className="bi bi-geo-alt-fill"></i>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "0.7rem", color: colors.textMuted, fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>Address</p>
+                        <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: "600" }}>{contactSettings.address || "Not set"}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -1044,6 +1357,13 @@ export default function Dashboard() {
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                       <label style={{ fontSize: "0.85rem", fontWeight: "500" }}>Publish Date *</label>
                       <input type="date" required value={formDate} onChange={(e) => setFormDate(e.target.value)} style={{ padding: "0.6rem", borderRadius: "6px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText, width: "100%" }} />
+                    </div>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                      <label style={{ fontSize: "0.85rem", fontWeight: "500" }}>Status *</label>
+                      <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)} style={{ padding: "0.6rem", borderRadius: "6px", border: `1px solid ${colors.borderMain}`, background: colors.inputBg, color: colors.inputText }}>
+                        <option value="Published">Published</option>
+                        <option value="Draft">Draft</option>
+                      </select>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                       <label style={{ fontSize: "0.85rem", fontWeight: "500" }}>Initial Views</label>
@@ -1269,6 +1589,223 @@ export default function Dashboard() {
                 <button type="submit" style={{ background: "#E31837", border: "none", color: "#fff", padding: "0.5rem 1.25rem", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>{editingItem ? "Update Record" : "Save Entry"}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM LOGOUT CONFIRMATION MODAL */}
+      {showLogoutModal && (
+        <div
+          onClick={() => !isSigningOut && setShowLogoutModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(6px)",
+            zIndex: 99999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem"
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: colors.bgCard,
+              border: `1px solid ${colors.borderMain}`,
+              borderRadius: "16px",
+              padding: "2rem",
+              width: "100%",
+              maxWidth: "420px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "1.25rem"
+            }}
+          >
+            <div
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "50%",
+                background: "rgba(239, 68, 68, 0.12)",
+                color: "#ef4444",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.75rem"
+              }}
+            >
+              <i className="bi bi-box-arrow-right"></i>
+            </div>
+            <div>
+              <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.25rem", fontWeight: "700", color: colors.textMain }}>
+                Sign Out Confirmation
+              </h3>
+              <p style={{ margin: 0, fontSize: "0.9rem", color: colors.textMuted, lineHeight: 1.5 }}>
+                Are you sure you want to end your administrator session? You will need to log back in to access the dashboard.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "0.75rem", width: "100%", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                disabled={isSigningOut}
+                onClick={() => setShowLogoutModal(false)}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  border: `1px solid ${colors.borderMain}`,
+                  background: "transparent",
+                  color: colors.textMain,
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  cursor: isSigningOut ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSigningOut}
+                onClick={executeSignOut}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "#E31837",
+                  color: "#ffffff",
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  cursor: isSigningOut ? "not-allowed" : "pointer",
+                  boxShadow: "0 4px 12px rgba(227, 24, 55, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                {isSigningOut ? (
+                  <>
+                    <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }}></span>
+                    Signing out...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-box-arrow-right"></i> Sign Out
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div
+          onClick={() => setShowDeleteModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(6px)",
+            zIndex: 99999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem"
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: colors.bgCard,
+              border: `1px solid ${colors.borderMain}`,
+              borderRadius: "16px",
+              padding: "2rem",
+              width: "100%",
+              maxWidth: "420px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "1.25rem"
+            }}
+          >
+            <div
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "50%",
+                background: "rgba(239, 68, 68, 0.12)",
+                color: "#ef4444",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.75rem"
+              }}
+            >
+              <i className="bi bi-trash3"></i>
+            </div>
+            <div>
+              <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.25rem", fontWeight: "700", color: colors.textMain }}>
+                Confirm Deletion
+              </h3>
+              <p style={{ margin: 0, fontSize: "0.9rem", color: colors.textMuted, lineHeight: 1.5 }}>
+                Are you sure you want to permanently delete <strong style={{ color: colors.textMain }}>&ldquo;{deleteTarget.title}&rdquo;</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "0.75rem", width: "100%", marginTop: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  border: `1px solid ${colors.borderMain}`,
+                  background: "transparent",
+                  color: colors.textMain,
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDelete}
+                style={{
+                  flex: 1,
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  border: "none",
+                  background: "#ef4444",
+                  color: "#ffffff",
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                <i className="bi bi-trash3"></i> Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

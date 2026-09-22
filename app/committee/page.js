@@ -26,7 +26,7 @@ export default function Committee() {
             {members.map((member) => (
               <div key={member.id} className="committee-card" style={{ background: "white" }}>
                 <div className="committee-card-img">
-                  {member.image || member.photo ? (
+                  {(member.image || member.photo) && (member.image !== "/images/hero-banner-1.jpg" && member.photo !== "/images/hero-banner-1.jpg") ? (
                     <img 
                       src={member.image || member.photo} 
                       alt={member.name} 
